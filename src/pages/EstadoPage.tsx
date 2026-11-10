@@ -5,6 +5,7 @@ import { rawRequest } from '../api/http';
 import type { ClearanceCheckResult, ClearanceInfo, Health, IntegrationStatus } from '../api/types';
 import { ErrorBox, Spinner } from '../components/Screens';
 import { BUILD_ID } from '../config';
+import { notifyFloorOpened } from '../realtime/events';
 
 interface Snapshot {
   health: boolean;
@@ -61,6 +62,7 @@ export default function EstadoPage() {
     try {
       const result = await api<ClearanceCheckResult>('/clearance/check', { method: 'POST' });
       setCheckResult(result);
+      if (result.granted) notifyFloorOpened();
       setReload((n) => n + 1);
     } catch (error) {
       if (error instanceof ApiError && error.code === 'CHECK_FROM_APP_REQUIRED') {

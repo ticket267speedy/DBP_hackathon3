@@ -4,6 +4,7 @@ function cleanBaseUrl(value: string | undefined): string {
 
 /** Toda la configuración sale de variables de entorno VITE_*: ninguna URL va escrita en el código. */
 export const API_BASE_URL = cleanBaseUrl(import.meta.env.VITE_API_BASE_URL);
+export const WS_BASE_URL = cleanBaseUrl(import.meta.env.VITE_WS_BASE_URL);
 
 /** Valor de la cabecera X-Lumon-Build ("dev" en local, SHA del commit en producción). */
 export const BUILD_ID = __LUMON_BUILD__;

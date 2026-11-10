@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { CellRef, Rules } from '../api/types';
+import type { FloorClaim, FloorMember } from '../realtime/useFloor';
 import { isScary } from './groups';
 import { CHAR_BY_BIN, TileStore, type DecodedTile } from './tiles';
 
@@ -174,6 +175,9 @@ export interface VirtualGridProps {
   active: CellRef;
   initialCenter: CellRef;
   selection: ReadonlySet<number> | null;
+  floorMembers?: readonly FloorMember[];
+  floorClaims?: readonly FloorClaim[];
+  onCursor?: (cell: CellRef) => void;
   onActiveChange: (cell: CellRef) => void;
   onActivateCell: (cell: CellRef) => void;
   onClearSelection: () => void;
@@ -342,6 +346,13 @@ export function VirtualGrid(props: VirtualGridProps) {
     props.onActivateCell(cell);
   }
 
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!props.onCursor || !(event.target instanceof Element)) return;
+    const node = event.target.closest<HTMLElement>('[data-r]');
+    if (node) props.onCursor({ r: Number(node.dataset.r), c: Number(node.dataset.c) });
+  }
+
+  const inWindow = ({ r, c }: CellRef) => r >= range.r0 && r < range.r1 && c >= range.c0 && c < range.c1;
   const activeOutsideRows = active.r < range.r0 || active.r >= range.r1;
   const activeOutsideCols = active.c < range.c0 || active.c >= range.c1;
   const rowIndexes: number[] = [];
@@ -360,6 +371,7 @@ export function VirtualGrid(props: VirtualGridProps) {
       aria-multiselectable="true"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
     >
       <div role="rowgroup" className="mdr-grid-canvas" style={{ width: cols * CELL_PX, height: rows * CELL_PX }}>
         {rowIndexes.map((r) => {
@@ -380,6 +392,28 @@ export function VirtualGrid(props: VirtualGridProps) {
             />
           );
         })}
+        <div role="presentation" aria-hidden="true" className="pointer-events-none absolute inset-0">
+          {props.floorClaims?.flatMap((claim) =>
+            claim.cells.filter(inWindow).map(({ r, c }) => (
+              <span
+                key={claim.claimId + ':' + r + ':' + c}
+                className="absolute border border-amber-300/75"
+                style={{ top: r * CELL_PX, left: c * CELL_PX, width: CELL_PX, height: CELL_PX }}
+              />
+            )),
+          )}
+          {props.floorMembers?.map(({ userId, displayName, r, c }) =>
+            r !== null && c !== null && inWindow({ r, c }) && (
+              <span
+                key={userId}
+                className="absolute z-10 max-w-36 truncate rounded bg-cyan-200 px-1 text-[10px] font-semibold text-slate-950"
+                style={{ top: r * CELL_PX, left: c * CELL_PX }}
+              >
+                {displayName}
+              </span>
+            ),
+          )}
+        </div>
       </div>
     </div>
   );

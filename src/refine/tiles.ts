@@ -1,6 +1,7 @@
 import { ApiError, abortError, errorMessage, isAbortError } from '../api/errors';
 import type { BinCode, CellRef, Tile } from '../api/types';
 import { backoffDelay } from '../lib/async';
+import { pauseTileRequests, waitForTilePermit } from './tileRateLimit';
 
 /** Bloque ya decodificado: un byte por celda, en el mismo orden (por filas) que la API. */
 export interface DecodedTile {
@@ -278,6 +279,20 @@ export class TileStore {
   }
 
   /** Reintento manual de los bloques visibles que fallaron. */
+  invalidateAll(): void {
+    const wasActive = this.active;
+    this.suspend();
+    this.tiles.clear();
+    this.localBins.clear();
+    this.stale.clear();
+    this.errors.clear();
+    this.attempts.clear();
+    this.pins.clear();
+    if (wasActive) this.resume();
+    this.bump();
+  }
+
+  /** Reintento manual de los bloques visibles que fallaron. */
   retryErrors(): void {
     const now = Date.now();
     for (const key of this.wanted) {
@@ -364,7 +379,8 @@ export class TileStore {
     this.sentAt.push(Date.now());
     this.requested += 1;
 
-    this.fetchTile(tileRow, tileCol, controller.signal)
+    waitForTilePermit(controller.signal)
+      .then(() => this.fetchTile(tileRow, tileCol, controller.signal))
       .then((tile) => {
         if (this.inflight.get(key) !== controller) return; // cancelada o reemplazada
         this.inflight.delete(key);
@@ -376,9 +392,10 @@ export class TileStore {
         this.attempts.delete(key);
         this.settle(key, null);
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         if (this.inflight.get(key) === controller) this.inflight.delete(key);
         if (controller.signal.aborted || isAbortError(error)) return; // salió de la vista
+        if (error instanceof ApiError && error.status === 429) await pauseTileRequests(error.retryAfterMs ?? 1000);
         this.handleFailure(key, error);
       })
       .finally(() => {

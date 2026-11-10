@@ -13,6 +13,7 @@ import {
   type FilesQuery,
 } from '../files/filesQuery';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { useLumonEvent } from '../realtime/events';
 
 /** Caché en memoria por URL: volver desde la grilla pinta el listado al instante. */
 const pageCache = new Map<string, FilePage>();
@@ -37,6 +38,12 @@ export default function FilesPage() {
   const [retryTick, setRetryTick] = useState(0);
   const [text, setText] = useState(query.q);
   const debouncedText = useDebouncedValue(text, 350);
+  useLumonEvent(event => {
+    if (event.kind === 'refinement.created' || event.kind === 'file.completed' || event.kind === 'stream.reset') {
+      pageCache.clear();
+      setRetryTick(value => value + 1);
+    }
+  });
 
   /** Cambiar filtro, búsqueda, orden o tamaño vuelve a la página 0: nunca se queda en una página que no existe. */
   const update = useCallback(

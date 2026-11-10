@@ -20,6 +20,8 @@ import { findGroup, isScary, tilesOfCells, type GroupInfo } from '../refine/grou
 import { TileStore } from '../refine/tiles';
 import { useGroupDrag } from '../refine/useGroupDrag';
 import { VirtualGrid } from '../refine/VirtualGrid';
+import { record, useLumonEvent } from '../realtime/events';
+import { useFloor } from '../realtime/useFloor';
 import ForbiddenPage from './ForbiddenPage';
 
 // ----------------------------------------------------------------------------------------------
@@ -144,6 +146,9 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'idle' });
   const [showGridAnyway, setShowGridAnyway] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const { status: floorStatus, message: floorMessage, members, claims, claimMessage, select: selectOnFloor, cursor } =
+    useFloor(file.id, file.status !== 'COMPLETE' || showGridAnyway);
+  const reloadFile = useRef<AbortController | null>(null);
 
   const [store] = useState(
     () =>
@@ -172,6 +177,7 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
     return () => {
       mounted.current = false;
       selectAbort.current?.abort();
+      reloadFile.current?.abort();
       store.suspend();
     };
   }, [store]);
@@ -232,6 +238,40 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
     },
     [store, rules],
   );
+
+  // Los cambios de otros refinadores se aplican a la caché; un reset recupera la foto por HTTP.
+  useLumonEvent(({ kind, data }) => {
+    if (kind !== 'stream.reset' && data.fileId !== file.id) return;
+    if (kind === 'stream.reset') {
+      store.invalidateAll();
+      if (!sendingRef.current) clearSelection();
+    } else if (kind === 'refinement.created') {
+      const bin = BIN_CODES.find((code) => code === data.bin);
+      if (bin && Array.isArray(data.cells)) {
+        const cells = data.cells.map(record).flatMap((cell) =>
+          typeof cell?.r === 'number' && typeof cell.c === 'number' ? [{ r: cell.r, c: cell.c }] : [],
+        );
+        store.applyRefinement(cells, bin);
+        const selected = selectionRef.current;
+        if (!sendingRef.current && selected?.state === 'ready'
+            && cells.some(({ r, c }) => selected.group.ids.has(r * store.cols + c))) {
+          clearSelection();
+        }
+      }
+    } else if (kind !== 'file.completed') {
+      return;
+    }
+    reloadFile.current?.abort();
+    const request = new AbortController();
+    reloadFile.current = request;
+    void api<DataFile>(`/files/${file.id}`, { signal: request.signal, retries: 3 })
+      .then((fresh) => {
+        if (!request.signal.aborted) setFile((prev) => fresh.updatedAt >= prev.updatedAt ? fresh : prev);
+      })
+      .catch(() => { /* El próximo evento volverá a pedir el estado del archivo. */ });
+  });
+
+  useEffect(() => { cursor(active); }, [active, cursor]);
 
   // ---- refinar ----
   const refine = useCallback(
@@ -356,6 +396,11 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
   const onBinKey = useCallback((index: number) => void refine(BIN_CODES[index]), [refine]);
 
   const group = selection?.state === 'ready' ? selection.group : null;
+  useEffect(() => {
+    const eligible = canRefine && group && !group.noise && !group.refinedBin && !group.partiallyRefined;
+    selectOnFloor(eligible ? group.cells[0] : null);
+  }, [canRefine, group, selectOnFloor]);
+
   const canSend =
     canRefine && group !== null && !group.noise && !group.refinedBin && !group.partiallyRefined && feedback.kind !== 'sending';
   const { drag, start: startDrag } = useGroupDrag((bin) => void refine(bin), canSend);
@@ -418,6 +463,13 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
             Flechas, RePág/AvPág, Inicio/Fin para moverte. Enter elige el grupo. Arrástralo a una caja o pulsa 1–4. Esc
             lo suelta.
           </p>
+          <div className="space-y-1 text-xs text-[var(--mdr-muted)]">
+            <p role="status">
+              {floorStatus === 'connected' ? 'Piso compartido conectado.' : floorMessage || 'Conectando al piso compartido…'}
+            </p>
+            {members.length > 0 && <p>En el archivo: {members.map((member) => member.displayName).join(', ')}</p>}
+            {claimMessage && <p role="status">{claimMessage}</p>}
+          </div>
           <VirtualGrid
             store={store}
             rules={rules}
@@ -426,6 +478,9 @@ function RefineWorkspace({ initialFile, rules }: { initialFile: DataFile; rules:
             active={active}
             initialCenter={initialCell}
             selection={group?.ids ?? null}
+            floorMembers={members}
+            floorClaims={claims}
+            onCursor={cursor}
             onActiveChange={setActive}
             onActivateCell={selectAt}
             onClearSelection={clearSelection}
