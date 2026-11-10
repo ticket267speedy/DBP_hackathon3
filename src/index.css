@@ -1,1 +1,303 @@
 @import "tailwindcss";
+
+/* Paleta de la consola (tokens). Se usan desde Tailwind con text-[var(--mdr-ink)], etc. */
+:root {
+  --mdr-bg: #07131c;
+  --mdr-panel: #0d1f2c;
+  --mdr-line: #1d3446;
+  --mdr-ink: #e6f1f8;
+  --mdr-muted: #8aa3b5;
+  --mdr-accent: #7fd3ff;
+  --mdr-ok: #6fe0a6;
+  --mdr-warn: #f2c35b;
+  --mdr-danger: #ff7a7a;
+  --bin-W: #5fb3ff;
+  --bin-F: #8be38b;
+  --bin-D: #c792ff;
+  --bin-M: #ff9e6b;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--mdr-bg);
+    color: var(--mdr-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--mdr-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .mdr-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--mdr-accent);
+    color: #04121b;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    transition: filter 0.15s;
+  }
+  .mdr-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .mdr-btn:disabled,
+  .mdr-btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .mdr-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    border: 1px solid var(--mdr-line);
+    padding: 0.5rem 0.9rem;
+    color: var(--mdr-ink);
+  }
+  .mdr-btn-ghost:hover:not(:disabled) {
+    border-color: var(--mdr-accent);
+  }
+  .mdr-link {
+    color: var(--mdr-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .mdr-input {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid var(--mdr-line);
+    background: #081822;
+    padding: 0.55rem 0.75rem;
+    color: var(--mdr-ink);
+  }
+  .mdr-input[aria-invalid='true'] {
+    border-color: var(--mdr-danger);
+  }
+  .mdr-panel {
+    border-radius: 0.75rem;
+    border: 1px solid var(--mdr-line);
+    background: var(--mdr-panel);
+    padding: 1.1rem;
+  }
+  .mdr-chip {
+    border-radius: 999px;
+    border: 1px solid var(--mdr-line);
+    padding: 0.1rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--mdr-muted);
+    white-space: nowrap;
+  }
+  .mdr-chip-ok {
+    border-color: color-mix(in srgb, var(--mdr-ok) 50%, transparent);
+    color: var(--mdr-ok);
+  }
+  .mdr-chip-bad {
+    border-color: color-mix(in srgb, var(--mdr-danger) 50%, transparent);
+    color: var(--mdr-danger);
+  }
+  .mdr-bar {
+    display: block;
+    height: 0.4rem;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--mdr-line);
+  }
+  .mdr-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--mdr-accent);
+    transition: width 0.4s ease;
+  }
+  .mdr-skip {
+    position: absolute;
+    left: -999px;
+    top: 0.5rem;
+    z-index: 60;
+    background: var(--mdr-accent);
+    color: #04121b;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.4rem;
+  }
+  .mdr-skip:focus {
+    left: 0.5rem;
+  }
+  .mdr-spinner {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 999px;
+    border: 2px solid var(--mdr-line);
+    border-top-color: var(--mdr-accent);
+    animation: mdr-spin 0.8s linear infinite;
+  }
+
+  /* ---------- Grilla (CP2) ---------- */
+  .mdr-grid {
+    position: relative;
+    overflow: auto;
+    height: min(68vh, 1152px);
+    max-width: 1472px;
+    border-radius: 0.75rem;
+    border: 1px solid var(--mdr-line);
+    background: #06111a;
+    overscroll-behavior: contain;
+  }
+  .mdr-grid-canvas {
+    position: relative;
+  }
+  .mdr-row {
+    position: absolute;
+    left: 0;
+    height: 32px;
+    width: 100%;
+  }
+  .mdr-cell {
+    position: absolute;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size: 15px;
+    color: #4f6b80;
+    user-select: none;
+    cursor: default;
+  }
+  .mdr-cell:focus {
+    outline: 2px solid #ffffff;
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  .mdr-cell.is-scary {
+    color: #eaf7ff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mdr-cell.is-selected {
+    background: color-mix(in srgb, var(--mdr-accent) 28%, transparent);
+    box-shadow: inset 0 0 0 1px var(--mdr-accent);
+    cursor: grab;
+    touch-action: none;
+  }
+  .mdr-cell.is-pending {
+    background: repeating-linear-gradient(45deg, #0b1a25 0 6px, #0e202d 6px 12px);
+  }
+  .mdr-cell.is-error {
+    background: color-mix(in srgb, var(--mdr-danger) 18%, transparent);
+    color: var(--mdr-danger);
+  }
+  .mdr-cell.bin-W {
+    color: var(--bin-W);
+    background: color-mix(in srgb, var(--bin-W) 14%, transparent);
+  }
+  .mdr-cell.bin-F {
+    color: var(--bin-F);
+    background: color-mix(in srgb, var(--bin-F) 14%, transparent);
+  }
+  .mdr-cell.bin-D {
+    color: var(--bin-D);
+    background: color-mix(in srgb, var(--bin-D) 14%, transparent);
+  }
+  .mdr-cell.bin-M {
+    color: var(--bin-M);
+    background: color-mix(in srgb, var(--bin-M) 14%, transparent);
+  }
+  .mdr-digit {
+    display: inline-block;
+  }
+
+  /* Temblor: la amplitud y la velocidad crecen con el nivel (1–5). Se anima el dígito, no la celda. */
+  .tremble {
+    animation: mdr-tremble var(--dur) ease-in-out infinite;
+  }
+  .t1 { --amp: 0.6px; --dur: 0.55s; }
+  .t2 { --amp: 0.9px; --dur: 0.45s; }
+  .t3 { --amp: 1.3px; --dur: 0.35s; }
+  .t4 { --amp: 1.7px; --dur: 0.27s; }
+  .t5 { --amp: 2.2px; --dur: 0.2s; }
+
+  .mdr-bin {
+    width: 100%;
+    text-align: left;
+    border-radius: 0.75rem;
+    border: 1px solid var(--mdr-line);
+    background: var(--mdr-panel);
+    padding: 0.8rem;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .mdr-bin:disabled {
+    cursor: not-allowed;
+  }
+  .mdr-bin:not(:disabled):hover,
+  .mdr-bin.is-over {
+    border-color: var(--mdr-accent);
+    transform: translateY(-2px);
+  }
+  .mdr-bin.is-suggested {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mdr-accent) 45%, transparent);
+  }
+  .mdr-drag-handle {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px dashed var(--mdr-accent);
+    padding: 0.5rem;
+    color: var(--mdr-accent);
+    cursor: grab;
+    touch-action: none;
+  }
+  .mdr-drag-handle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .mdr-ghost {
+    position: fixed;
+    z-index: 70;
+    pointer-events: none;
+    border-radius: 0.5rem;
+    background: var(--mdr-accent);
+    color: #04121b;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  }
+}
+
+@keyframes mdr-tremble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(var(--amp), calc(var(--amp) * -1)); }
+  50% { transform: translate(calc(var(--amp) * -1), var(--amp)); }
+  75% { transform: translate(var(--amp), var(--amp)); }
+}
+
+@keyframes mdr-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Movimiento reducido: nada se mueve; el miedo se distingue con subrayado y un fondo según su intensidad. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .tremble {
+    animation: none !important;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+  .mdr-cell.is-scary:has(.t1) { background: rgb(242 195 91 / 0.1); }
+  .mdr-cell.is-scary:has(.t2) { background: rgb(242 195 91 / 0.18); }
+  .mdr-cell.is-scary:has(.t3) { background: rgb(242 195 91 / 0.26); }
+  .mdr-cell.is-scary:has(.t4) { background: rgb(242 195 91 / 0.34); }
+  .mdr-cell.is-scary:has(.t5) { background: rgb(242 195 91 / 0.42); }
+}
